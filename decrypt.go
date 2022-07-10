@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	b64 "encoding/base64"
 	"log"
+	"math/big"
 	"os"
 	"rsago/utils"
 )
@@ -33,24 +35,34 @@ func main() {
 	//Load key, modulus from key_file_name
 	modulus, key := utils.GetKeyFromFile(keyFileReader)
 
-	//Load text from source_file_name
-	text := utils.GetTextFromSrcFile(err, srcFileName)
+	originalEncodedText := ""
 
-	// obtém chunksize
-	chunkSize := utils.BlockSize(*modulus)
-	//codedText = base64encode(text)
-	codedText := b64.StdEncoding.EncodeToString([]byte(text))
+	srcFile, err := os.Open(srcFileName)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer func(srcFile *os.File) {
+		_ = srcFile.Close()
+	}(srcFile)
 
-	// itera por cada grupo de caracteres quebrados pelo blockSize
-	//for chunk in codedText.split(by chunk_size) do
-	for _, chunk := range utils.SplitByWidth(codedText, chunkSize) {
-		//originalChunk = convertToBigInt(chunk)
-		originalChunk := utils.NewString(chunk).BigIntValue()
-		//encodedChunk = originalChunk.modPow(key, modulus)
-		encodedChunk := originalChunk.Exp(originalChunk, key, modulus)
+	srcFileScanner := bufio.NewScanner(srcFile)
 
-		//save(encodedChunk, dest_file_name)
-		_, _ = dstWriter.WriteString(encodedChunk.Text(10) + "\n")
+	for srcFileScanner.Scan() {
+		line := srcFileScanner.Text()
+		encodedChunk, _ := new(big.Int).SetString(line, 10)
+		originalChunk := encodedChunk.Exp(encodedChunk, key, modulus)
+
+		base64EncodedChunk := utils.NewBigInt(originalChunk).Text()
+
+		originalEncodedText += base64EncodedChunk
+	}
+
+	decryptedTextBytes, _ := b64.StdEncoding.DecodeString(originalEncodedText)
+	decryptedText := string(decryptedTextBytes)
+
+	_, err = dstWriter.WriteString(decryptedText)
+	if err != nil {
+		log.Fatalln(err)
 	}
 
 	err = dstWriter.Flush()

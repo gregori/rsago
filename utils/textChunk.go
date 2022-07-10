@@ -1,4 +1,4 @@
-package main
+package utils
 
 import "math/big"
 
@@ -34,6 +34,10 @@ func bigIntToString(n *big.Int) string {
 func NewString(n string) textChunk {
 	t := textChunk{n}
 	return t
+}
+
+func (t textChunk) Text() string {
+	return t.stringVal
 }
 
 //goland:noinspection GoExportedFuncWithUnexportedType
